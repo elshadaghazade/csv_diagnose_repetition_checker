@@ -9,13 +9,15 @@ const inquirer = require('inquirer');
 let results = [];
 let resultsAfterSubProcesses = [];
 
+const FILES_PATH = path.join(__dirname, 'files');
+
 
 function checkIfInterrupted () {
-    const files = fs.readdirSync('./files').filter(file => file.toLowerCase().endsWith('.csv'));
+    const files = fs.readdirSync(FILES_PATH).filter(file => file.toLowerCase().endsWith('.csv'));
     let ids = [];
     
     for(let file of files) {
-        const data = fs.readFileSync('./files/' + file, 'utf-8').split(',');
+        const data = fs.readFileSync(FILES_PATH + '/' + file, 'utf-8').split(',');
         ids = ids.concat(data.map(el => parseInt(el.trim())).filter(el => !isNaN(el)));
     }
 
@@ -24,7 +26,7 @@ function checkIfInterrupted () {
 
 
 
-async function processDiagnose (fromFile, similarity, comparisonColumn) {
+async function processDiagnose (fromFile, similarity, idColumn, comparisonColumn) {
 
     const idsToRemove = checkIfInterrupted();
     let continueFromLastPoint = false;
@@ -35,11 +37,16 @@ async function processDiagnose (fromFile, similarity, comparisonColumn) {
             {
                 name: 'continueFromLastPoint',
                 type: 'confirm',
-                message: 'Əvvəl qaldığınız yerdən davam etmək istəyirsinizmi?:'
+                message: 'Əvvəl qaldığınız yerdən davam etmək istəyirsinizmi?:',
+                default: true
             }
         ]);
 
         continueFromLastPoint = answers.continueFromLastPoint;
+    }
+
+    if (!continueFromLastPoint) {
+        removeFiles();
     }
 
     fs.createReadStream(fromFile)
@@ -55,7 +62,7 @@ async function processDiagnose (fromFile, similarity, comparisonColumn) {
     .on('end', () => {
         
         if (idsToRemove?.length && continueFromLastPoint) {
-            results = results.filter(result => !idsToRemove.includes(parseInt(result['S/S']?.trim())));
+            results = results.filter(result => !idsToRemove.includes(parseInt(result[idColumn]?.trim())));
         }
 
         const cpuCount = os.cpus().length;
@@ -69,9 +76,10 @@ async function processDiagnose (fromFile, similarity, comparisonColumn) {
                 portion, 
                 results: portion, 
                 similarity: parseFloat(similarity),
+                idColumn,
                 comparisonColumn,
                 continueFromLastPoint,
-                file: './files/new' + nameInd++ + '.csv'
+                file: `${FILES_PATH}/new${nameInd++}.csv`
             });
             
             subProcess.on('message', ({results}) => {
@@ -84,7 +92,7 @@ async function processDiagnose (fromFile, similarity, comparisonColumn) {
                         portion: resultsAfterSubProcesses, 
                         results: resultsAfterSubProcesses, 
                         similarity: parseFloat(similarity),
-                        file: './files/new' + nameInd++ + '.csv'
+                        file: `${FILES_PATH}/new${nameInd++}.csv`
                     });
                     
                     subProcess.on('message', ({results}) => {
@@ -109,9 +117,19 @@ function readFirstLine (fromFile, cb) {
 }
 
 function fixMissingThings () {
-    const filesFolderPath = path.join(__dirname, 'files');
-    if (!fs.existsSync(filesFolderPath)) {
-        fs.mkdirSync(filesFolderPath);
+    if (!fs.existsSync(FILES_PATH)) {
+        fs.mkdirSync(FILES_PATH);
+    }
+}
+
+function removeFiles () {
+    if (!fs.existsSync(FILES_PATH)) {
+        return;
+    }
+
+    const files = fs.readdirSync(FILES_PATH).filter(file => file.toLowerCase().endsWith('.csv'));
+    for(let file of files) {
+        fs.unlinkSync(FILES_PATH + '/' + file);
     }
 }
 
@@ -128,13 +146,20 @@ async function main () {
         {
             name: 'similarity',
             type: 'number',
-            message: 'Oxşarlıq dərəcəsini 0-1 arasında kəsr ədədi ilə qeyd edin:'
+            message: 'Oxşarlıq dərəcəsini 0-1 arasında kəsr ədədi ilə qeyd edin (default 0.8):',
+            default: 0.8
         }
     ]);
 
     readFirstLine(answers.fromFile, async splittedFirstLine => {
         const prompt = inquirer.createPromptModule();
         const answers2 = await prompt([
+            {
+                name: "idColumn",
+                type: "list",
+                message: "İD sütununu seçin",
+                choices: splittedFirstLine
+            },
             {
                 name: 'comparisonColumn',
                 type: 'list',
@@ -146,6 +171,7 @@ async function main () {
         processDiagnose(
             answers.fromFile, 
             answers.similarity, 
+            answers2.idColumn,
             answers2.comparisonColumn
         );
     });

@@ -1,34 +1,43 @@
 const stringSimilarity = require("string-similarity");
 const fs = require('fs');
+const path = require('path');
 
 let totalDeleted = 0;
 
-function findBestMatches (i, line1, results, file, sim=0.8, comparisonColumn) {
+function findBestMatches (i, line1, results, file, sim=0.8, idColumn, comparisonColumn) {
     for(let j = i+1; j < results.length; j++) {
         const line2 = results[j];
         if (!line2) {
             continue;
         }
 
-        if (line1['S/S'] === line2['S/S']) {
+        if (line1[idColumn] === line2[idColumn]) {
             continue;
         }
 
         const similarity = stringSimilarity.compareTwoStrings(line1[comparisonColumn], line2[comparisonColumn]);
         if (similarity >= sim) {
-            // line1.similarities.push(line2['S/S'])
-            fs.appendFileSync(file, line2['S/S'] + ',', 'utf-8');
+            // line1.similarities.push(line2[idColumn])
+            fs.appendFileSync(file, line2[idColumn] + ',', 'utf-8');
             delete results[j];
             ++totalDeleted;
         }
     }
 
-    console.log(file, 'total deleted:', totalDeleted);
+    // console.log(file, 'total deleted:', totalDeleted);
 }
 
-function findSimilarity (portion, results, file, similarity, comparisonColumn, continueFromLastPoint) {
+function findSimilarity (
+    portion, 
+    results, 
+    file, 
+    similarity, 
+    idColumn, 
+    comparisonColumn, 
+    continueFromLastPoint
+) {
     if (!continueFromLastPoint) {
-        fs.writeFileSync(file, 'S/S,similarities\n', 'utf-8');
+        fs.writeFileSync(file, `${idColumn},similarities\n`, 'utf-8');
     }
 
     for(let i = 0; i < portion.length; i++) {
@@ -37,21 +46,21 @@ function findSimilarity (portion, results, file, similarity, comparisonColumn, c
             continue;
         }
 
-        fs.appendFileSync(file, line1['S/S'] + ',', 'utf-8');
+        fs.appendFileSync(file, line1[idColumn] + ',', 'utf-8');
 
         if (line1.similarities === undefined) {
             line1.similarities = [];
         }
 
         const t1 = Date.now();
-        findBestMatches(i, line1, results, file, similarity, comparisonColumn);
+        findBestMatches(i, line1, results, file, similarity, idColumn, comparisonColumn);
         const t2 = Date.now();
 
-        console.log(file, i, (t2 - t1) / 1000);
+        console.log(path.basename(file), (t2 - t1) / 1000, 'sec.');
 
         fs.appendFileSync(file, '\n', 'utf-8');
 
-        // console.log(line1['S/S'], line1.similarities.length);
+        // console.log(line1[idColumn], line1.similarities.length);
 
         // line1.similarities = line1.similarities.join(',');
     }
@@ -59,6 +68,22 @@ function findSimilarity (portion, results, file, similarity, comparisonColumn, c
     process.send({results});
 }
 
-process.on('message', ({portion, results, file, similarity, comparisonColumn, continueFromLastPoint}) => {
-    findSimilarity(portion, results, file, similarity, comparisonColumn, continueFromLastPoint);
+process.on('message', ({
+    portion, 
+    results, 
+    file, 
+    similarity, 
+    idColumn,
+    comparisonColumn, 
+    continueFromLastPoint
+}) => {
+    findSimilarity(
+        portion, 
+        results, 
+        file, 
+        similarity, 
+        idColumn,
+        comparisonColumn, 
+        continueFromLastPoint
+    );
 })
