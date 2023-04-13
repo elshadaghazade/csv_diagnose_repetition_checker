@@ -18,7 +18,7 @@ function findBestMatches (i, line1, results, file, sim=0.8, idColumn, comparison
         const similarity = stringSimilarity.compareTwoStrings(line1[comparisonColumn], line2[comparisonColumn]);
         if (similarity >= sim) {
             // line1.similarities.push(line2[idColumn])
-            fs.appendFileSync(file, line2[idColumn] + ',', 'utf-8');
+            fs.appendFileSync(file, line1[idColumn] + ',' + line2[idColumn] + ',' + line2[comparisonColumn].replace(/,+/gi,' ') + '\n', 'utf-8');
             delete results[j];
             ++totalDeleted;
         }
@@ -37,7 +37,7 @@ function findSimilarity (
     continueFromLastPoint
 ) {
     if (!continueFromLastPoint) {
-        fs.writeFileSync(file, `${idColumn},similarities\n`, 'utf-8');
+        fs.writeFileSync(file, `müqayisə edilən id,oxşarı tapılan id,${comparisonColumn}\n`, 'utf-8');
     }
 
     for(let i = 0; i < portion.length; i++) {
@@ -46,7 +46,7 @@ function findSimilarity (
             continue;
         }
 
-        fs.appendFileSync(file, line1[idColumn] + ',', 'utf-8');
+        // fs.appendFileSync(file, line1[idColumn] + ',', 'utf-8');
 
         if (line1.similarities === undefined) {
             line1.similarities = [];
