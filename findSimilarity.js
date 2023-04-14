@@ -18,7 +18,7 @@ function findBestMatches (i, line1, results, file, sim=0.8, idColumn, comparison
         const similarity = stringSimilarity.compareTwoStrings(line1[comparisonColumn], line2[comparisonColumn]);
         if (similarity >= sim) {
             // line1.similarities.push(line2[idColumn])
-            fs.appendFileSync(file, line1[idColumn] + ',' + line2[idColumn] + ',' + line2[comparisonColumn].replace(/,+/gi,' ') + '\n', 'utf-8');
+            fs.appendFileSync(file, line1[idColumn] + ',' + line2[idColumn] + ',' + line2[comparisonColumn].replace(/,+/gi, ' ').replace(/[\n\r]+/gi, '. ') + '\n', 'utf-8');
             delete results[j];
             ++totalDeleted;
         }
