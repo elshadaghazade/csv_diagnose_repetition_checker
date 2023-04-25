@@ -54,8 +54,8 @@ async function processDiagnose (fromFile, similarity, idColumn, comparisonColumn
     .on('data', (data) => {
         const line = Object.entries(data);
         for(let col of line) {
-            col[0] = col[0]?.trim();
-            col[1] = col[1]?.trim();
+            col[0] = col[0]?.trim()?.replace?.(/[\n\r]+/gi, ' ');
+            col[1] = col[1]?.trim()?.replace?.(/[\n\r]+/gi, ' ');
         }
         results.push(Object.fromEntries(line));
     })
